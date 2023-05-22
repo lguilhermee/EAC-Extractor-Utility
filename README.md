@@ -7,7 +7,7 @@ This project provides a utility to decrypt and extract files from an EAC (Easy A
 ## Requirements
 
 - Windows Operating System
-- Access to EAC Server to download the EAC.Bin
+- Download EAC.Bin from EAC
 
 ## Description
 
