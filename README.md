@@ -30,6 +30,7 @@ Command-line usage: `EAC_Decrypt_Extract.exe <EAC.Bin>`
 ## Obtaining the EAC.Bin
 
 You can download the EAC.Bin from the EAC servers. To do this, you will need to use an HTTP Debugger to acquire the link. The link format typically looks like this:
+
 `https://modules-cdn.eac-prod.on.epicgames.com/modules/67d7e4253ad3477497a2ff44ddbd3f98/0ccb68be6228412ab45962992f0f6e7e/`
 
 
