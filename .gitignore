@@ -46,3 +46,4 @@
 *.db-shm
 *.lock
 *.vsidx
+.vs/DecryptEACPayload/v17/.suo

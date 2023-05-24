@@ -210,10 +210,15 @@ int main(int argc, char* argv[])
     // 5. Find the Pattern of start data and the size of the data
     auto result = PatternScan((uintptr_t)launcherData, "A7 ED 96 0C 0F");
 
+#ifdef _WIN64
     auto size1 = *(uint32_t*)ResolveRelative(
         PatternScan((uintptr_t)launcherData, "BE ? ? ? ? E9 ? ? ? ? 8B 3D").at(0) + 0xA, 2, 6);
     auto size2 = *(uint32_t*)ResolveRelative(PatternScan((uintptr_t)launcherData, "8B 15 ? ? ? ? 48 89 7C 24").at(0), 2,
                                              6);
+#else
+    auto size1 = *(uint32_t*)*(uint32_t*)(PatternScan((uintptr_t)launcherData, "8B 93 ? 00 00 00 8B 0D").at(0) + 0x8);
+    auto size2 = *(uint32_t*)(*(uint32_t*)(PatternScan((uintptr_t)launcherData, "FF 35 ? ? ? ? 99 68").at(0) + 2));
+#endif
 
     // 6. Copy to an Vector
     auto driverDataEncrypted     = std::vector<uint8_t>((uint8_t*)result.at(0), (uint8_t*)result.at(0) + size1);
