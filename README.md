@@ -1,69 +1,142 @@
 ![EAC Decrypt and Extract Utility](https://github.com/lguilhermee/EAC-Extractor-Utility/blob/main/logo.png)
-# EAC Decrypt and Extract Utility
+# EAC Decrypt and Extract Utility v2.0
 
+A powerful Windows utility to decrypt and extract files from EAC (Easy Anti-Cheat) modules. Now featuring an interactive console menu, web-based module downloading, and support for multiple games!
 
-This project provides a utility to decrypt and extract files from an EAC (Easy Anti-Cheat) binary. The utility is designed to run on Windows.
+## 🚀 Features
 
-## Requirements
+- **Interactive Console Menu**: User-friendly interface for easy navigation
+- **Web-Based Module Downloader**: Download EAC modules directly without manual extraction
+- **Local File Extraction**: Extract from existing EAC.bin files
+- **Game Configuration System**: JSON-based configuration for multiple games
+- **Enhanced Pattern Scanner**: Improved accuracy for module detection
+- **Automatic File Extraction**: Extracts launcher, driver, and usermode components
 
-- Windows Operating System
-- Download EAC.Bin from EAC
+## 📋 Requirements
 
-## Description
+- Windows Operating System (Windows 10/11 recommended)
+- Visual C++ Redistributables
+- Internet connection (for web-based downloading)
 
-This utility performs the following steps:
+## 🎮 Usage
 
-1. Loads an encrypted file specified as a command-line argument.
-2. Decrypts the loaded file using a custom decryption algorithm.
-3. Retrieves the current directory path.
-4. Saves the decrypted file with a specific name in the current directory.
-5. Loads the decrypted file as a library.
-6. Searches for specific patterns within the loaded library to determine the start and size of data.
-7. Copies encrypted data based on the identified patterns into separate vectors.
-8. Decrypts the data in the vectors.
-9. Saves the decrypted data as separate files in the current directory.
+### Method 1: Interactive Mode (Recommended)
+Simply run the executable and follow the interactive menu:
+```bash
+DecryptEACPayload.exe
+```
 
-## Usage
+The menu will guide you through:
+1. Choosing between web download or local file extraction
+2. Selecting a game from the configuration
+3. Automatic processing and extraction
 
-Command-line usage: `EAC_Decrypt_Extract.exe <EAC.Bin>`
+### Method 2: Command Line
+For direct file extraction:
+```bash
+DecryptEACPayload.exe <path_to_EAC.bin>
+```
 
-## Obtaining the EAC.Bin
+## 🔍 Finding Game IDs
 
-You can download the EAC.Bin from the EAC servers. To do this, you will need to use an HTTP Debugger to acquire the link. The link format typically looks like this:
+To add new games or use custom configurations, you'll need the `productId` and `deploymentId`:
 
-`https://modules-cdn.eac-prod.on.epicgames.com/modules/67d7e4253ad3477497a2ff44ddbd3f98/0ccb68be6228412ab45962992f0f6e7e/`
+1. **Navigate to your game's EAC folder**:
+   ```
+   ..\[GameName]\EasyAntiCheat\
+   ```
+   Example: `..\Throne and Liberty\EasyAntiCheat\`
 
+2. **Open `Settings.json`** with any text editor
 
-In this example:
-- `67d7e4253ad3477497a2ff44ddbd3f98` is the gameid
-- `0ccb68be6228412ab45962992f0f6e7e` is the uuid
+3. **Look for the configuration**:
+   ```json
+   {
+       "deploymentid": "278b7d6708d198db6305102c77abdf50",
+       "executable": "TL\\Binaries\\Win64\\TL.exe",
+       "hide_bootstrapper": "true",
+       "hide_gui": "true",
+       "productid": "21bf5373a3f1ebc9d1cbe14de40871b0",
+       "requested_splash": "EasyAntiCheat/SplashScreen.png",
+       "sandboxid": "9e11c91c1a3047c8e03369eb271f6f50",
+       "title": "TL",
+       "wait_for_game_process_exit": "false"
+   }
+   ```
 
-Please note that these ids will differ for each game.
+4. **Copy the `productid` and `deploymentid`** values
 
-## Overview of EAC Operation
+5. **Add to `games.json`** or use in the console menu
 
-Easy Anti-Cheat (EAC) operates through a series of sequential steps:
+## 🤝 Contributing
 
-1. EAC begins by executing the Launcher, whose primary responsibility is downloading and decrypting the EAC.Bin. It's important to note that the EAC.Bin already contains the Launcher, the usermode DLL, and the driver.sys.
-2. The decrypted binary is loaded into memory where it performs several initialization checks. During this stage, EAC decrypts both the EAC_Usermode.dll and EAC_Driver.sys.
-3. Following this, the usermode launcher loads the driver.sys.
-4. The driver performs additional checks. If these checks pass, the driver loads the usermode DLL into the process by mapping it.
-5. EAC continues to run until it is terminated.
+We welcome contributions! You can help by:
 
-This simplified description is intended to provide a general understanding of the process. The actual operation of EAC involves complex and advanced measures.
+- **Adding new games**: Submit a pull request to update `games.json` with new game configurations
+- **Reporting bugs**: Open an issue on GitHub
+- **Improving documentation**: Help other users with better guides
 
-## Results
+### Adding a New Game to games.json
 
-The utility generates the following files as a result of its operation:
+```json
+{
+    "name": "Your Game Name",
+    "productId": "productid_from_settings.json",
+    "deploymentId": "deploymentid_from_settings.json"
+}
+```
 
-1. EAC_Launcher.dll
-2. EAC_Driver.sys
-3. EAC_UserMode.dll
+Submit a pull request with your additions!
 
-## Acknowledgments
+## 📁 Output Files
 
-Special thanks to [iPower](https://github.com/iPower) for their valuable insights.
+The utility extracts the following components:
+
+- **EAC_Launcher.dll** - The main launcher component
+- **EAC_Driver.sys** - Kernel-mode driver
+- **EAC_UserMode.dll** - User-mode protection module
+
+Files are saved in the current working directory or a specified output folder.
+
+## 🔧 Technical Details
+
+### How EAC Modules Work
+
+Easy Anti-Cheat operates through a multi-stage process:
+
+1. **Module Download**: The launcher downloads the encrypted EAC.bin module
+2. **Decryption**: The binary is decrypted and loaded into memory
+3. **Component Extraction**: Three main components are extracted:
+   - Launcher DLL for initialization
+   - Kernel driver for system-level protection
+   - Usermode DLL for process monitoring
+4. **Driver Loading**: The kernel driver is loaded for deep system integration
+5. **Process Protection**: The usermode DLL is mapped into the game process
+
+### Module Structure
+
+Each EAC.bin contains:
+- Encrypted launcher code
+- Packed driver binary
+- Compressed usermode library
+- Configuration data and signatures
+
+## 🙏 Acknowledgments
+
+- Special thanks to [iPower](https://github.com/iPower) for their valuable insights
+- Community contributors who maintain the game configuration list
+- All users who report bugs and suggest improvements
+
+## ⚠️ Legal Notice
+
+This tool is for **educational and research purposes only**. Users are responsible for:
+- Compliance with all applicable laws
+- Respecting game Terms of Service
+- Understanding the risks of modifying game files
+- Using the tool responsibly and ethically
+
+**We do not encourage or support cheating in online games.**
 
 ---
 
-Remember to always use this tool responsibly and respect the Terms Of Service of the games and services you are interacting with.
+If you find this tool useful, consider ⭐ starring the repository and contributing to the games.json list!
