@@ -47,3 +47,13 @@
 *.lock
 *.vsidx
 .vs/DecryptEACPayload/v17/.suo
+*.i64
+*.id0
+*.til
+*.nam
+*.id1
+*.bin
+*.enc
+.vs/DecryptEACPayload/v17/DocumentLayout.json
+.vs/DecryptEACPayload/v17/DocumentLayout.backup.json
+*.yml

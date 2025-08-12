@@ -131,7 +131,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CryptoUtils.cpp" />
     <ClCompile Include="DecryptEACPayload.cpp" />
+    <ClCompile Include="EACExtractor.cpp" />
+    <ClCompile Include="FileUtils.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="MemoryDumper.cpp" />
+    <ClCompile Include="PatternScanner.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="CryptoUtils.h" />
+    <ClInclude Include="EACExtractor.h" />
+    <ClInclude Include="FileUtils.h" />
+    <ClInclude Include="MemoryDumper.h" />
+    <ClInclude Include="PatternScanner.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
