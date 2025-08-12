@@ -94,7 +94,7 @@ The utility extracts the following components:
 
 - **EAC_Launcher.dll** - The main launcher component
 - **EAC_Driver.sys** - Kernel-mode driver
-- **EAC_UserMode.dll** - User-mode protection module
+- **EAC_UserMode.dll** - User-mode module
 
 Files are saved in the current working directory or a specified output folder.
 
@@ -108,31 +108,28 @@ Easy Anti-Cheat operates through a multi-stage process:
 2. **Decryption**: The binary is decrypted and loaded into memory
 3. **Component Extraction**: Three main components are extracted:
    - Launcher DLL for initialization
-   - Kernel driver for system-level protection
-   - Usermode DLL for process monitoring
+   - Kernel driver
+   - Usermode DLL
 4. **Driver Loading**: The kernel driver is loaded for deep system integration
 5. **Process Protection**: The usermode DLL is mapped into the game process
 
 ### Module Structure
 
 Each EAC.bin contains:
-- Encrypted launcher code
-- Packed driver binary
-- Compressed usermode library
-- Configuration data and signatures
+- Encrypted launcher library code
+- Encrypted usermode library code
+- Encrypted kernel driver code
 
 ## 🙏 Acknowledgments
 
 - Special thanks to [iPower](https://github.com/iPower) for their valuable insights
 - Community contributors who maintain the game configuration list
-- All users who report bugs and suggest improvements
 
 ## ⚠️ Legal Notice
 
 This tool is for **educational and research purposes only**. Users are responsible for:
 - Compliance with all applicable laws
 - Respecting game Terms of Service
-- Understanding the risks of modifying game files
 - Using the tool responsibly and ethically
 
 **We do not encourage or support cheating in online games.**
