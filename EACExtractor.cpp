@@ -4,10 +4,15 @@
 #include "PatternScanner.h"
 #include "MemoryDumper.h"
 #include <iostream>
-#include <filesystem>
+#include <algorithm>
 
-EACExtractor::EACExtractor(const std::string& inputFile)
-	: inputFilePath(inputFile)
+EACExtractor::EACExtractor(std::string inputFile)
+	: InputFilePath(std::move(inputFile))
+{
+}
+
+EACExtractor::EACExtractor(std::string inputFile, std::string outputFolder)
+	: dumpFolder(std::move(outputFolder)), InputFilePath(std::move(inputFile))
 {
 }
 
@@ -18,10 +23,21 @@ EACExtractor::~EACExtractor()
 
 bool EACExtractor::CreateOutputFolder()
 {
+	if (!dumpFolder.empty())
+	{
+		// Custom output folder already set (e.g., by caller). Ensure it exists.
+		if (!FileUtils::EnsureDirectoryExists(dumpFolder))
+		{
+			std::cerr << "[!] Failed to ensure output folder exists" << '\n';
+			return false;
+		}
+		return true;
+	}
+
 	dumpFolder = FileUtils::CreateDumpFolder();
 	if (dumpFolder.empty())
 	{
-		std::cerr << "[!] Failed to create dump folder" << std::endl;
+		std::cerr << "[!] Failed to create dump folder" << '\n';
 		return false;
 	}
 	return true;
@@ -31,27 +47,61 @@ bool EACExtractor::SaveOriginalFile()
 {
 	try
 	{
+		// If the input file already resides in the dump folder, avoid duplicating it (simple prefix check, case-insensitive)
+		auto normalize = [](std::string s)
+		{
+			std::ranges::replace(s, '/', '\\');
+			std::string lower;
+			lower.resize(s.size());
+			std::ranges::transform(s, lower.begin(), [](unsigned char c)
+			{
+				return static_cast<char>(std::tolower(c));
+			});
+			return lower;
+		};
+
+		const std::string inputLower = normalize(InputFilePath);
+		const std::string dumpLower  = normalize(dumpFolder);
+
+		if (!dumpLower.empty())
+		{
+			if (inputLower.starts_with(dumpLower + "\\") || inputLower == dumpLower)
+			{
+				std::cout << "[i] Input file is already in the output folder. Skipping copy of original." << '\n';
+				return true;
+			}
+		}
+
+		// Copy the original into the dump folder for reference
+		auto originalData = FileUtils::LoadBinaryFile(InputFilePath);
+		if (originalData.empty())
+		{
+			std::cerr << "[!] Failed to read input file for original copy" << '\n';
+			return false;
+		}
+
 		std::string outputPath = dumpFolder + "\\original_eac.bin";
-		std::filesystem::copy_file(inputFilePath, outputPath,
-		                           std::filesystem::copy_options::overwrite_existing);
-		std::cout << "[+] Saved original file to: " << outputPath << std::endl;
+		if (!FileUtils::SaveBinaryFile(outputPath, originalData))
+		{
+			return false;
+		}
 		return true;
 	}
 	catch (const std::exception& e)
 	{
-		std::cerr << "[!] Failed to copy original file: " << e.what() << std::endl;
+		std::cerr << "[!] Failed to copy original file: " << e.what() << '\n';
 		return false;
 	}
 }
 
 bool EACExtractor::DecryptAndSaveLauncher()
 {
-	std::cout << "\n[*] Loading and decrypting launcher..." << std::endl;
+	std::cout << "\n[*] Loading and decrypting launcher..." << '\n';
 
-	auto encryptedFile = FileUtils::LoadBinaryFile(inputFilePath);
+	auto encryptedFile = FileUtils::LoadBinaryFile(InputFilePath);
 	if (encryptedFile.empty())
 	{
-		std::cerr << "[!] Failed to load input file" << std::endl;
+		std::cerr << "[!] Failed to load input file" << '\n';
 		return false;
 	}
 
@@ -60,7 +110,7 @@ bool EACExtractor::DecryptAndSaveLauncher()
 	std::string launcherPath = dumpFolder + "\\EAC_Launcher_decrypted.dll";
 	if (!FileUtils::SaveBinaryFile(launcherPath, decryptedBuffer))
 	{
-		std::cerr << "[!] Failed to save decrypted launcher" << std::endl;
+		std::cerr << "[!] Failed to save decrypted launcher" << '\n';
 		return false;
 	}
 
@@ -70,114 +120,35 @@ bool EACExtractor::DecryptAndSaveLauncher()
 bool EACExtractor::LoadLauncherModule()
 {
 	std::string launcherPath = dumpFolder + "\\EAC_Launcher_decrypted.dll";
-	launcherModule           = LoadLibraryA(launcherPath.c_str());
+	LauncherModule           = LoadLibraryA(launcherPath.c_str());
 
-	if (!launcherModule)
+	if (!LauncherModule)
 	{
-		std::cerr << "[!] Failed to load launcher module" << std::endl;
+		std::cerr << "[!] Failed to load launcher module" << '\n';
 		return false;
 	}
 
-	std::cout << "[+] Launcher module loaded at: 0x" << std::hex << launcherModule << std::dec << std::endl;
+	std::cout << "[+] Launcher module loaded at: 0x" << std::hex << LauncherModule << std::dec << '\n';
 	return true;
 }
 
 bool EACExtractor::DumpLoadedModule()
 {
-	if (!launcherModule)
+	if (!LauncherModule)
 	{
-		std::cerr << "[!] Launcher module not loaded" << std::endl;
+		std::cerr << "[!] Launcher module not loaded" << '\n';
 		return false;
 	}
 
 	std::string dumpPath = dumpFolder + "\\EAC_Launcher_memory_dump.dll";
-	if (!MemoryDumper::DumpModuleFromMemory(launcherModule, dumpPath))
+	if (!MemoryDumper::DumpModuleFromMemory(LauncherModule, dumpPath))
 	{
-		std::cerr << "[!] Failed to dump launcher from memory" << std::endl;
+		std::cerr << "[!] Failed to dump launcher from memory" << '\n';
 		return false;
 	}
 
-	std::cout << "[+] Dumped launcher from memory to: " << dumpPath << std::endl;
+	std::cout << "[+] Dumped launcher from memory to: " << dumpPath << '\n';
 	return true;
-}
-
-
-#define COMPRESSION_FORMAT_NONE          (0x0000)
-#define COMPRESSION_FORMAT_DEFAULT       (0x0001)
-#define COMPRESSION_FORMAT_LZNT1         (0x0002)
-#define COMPRESSION_FORMAT_XPRESS        (0x0003)
-#define COMPRESSION_FORMAT_XPRESS_HUFF   (0x0004)
-#define COMPRESSION_FORMAT_XP10          (0x0005)
-#define COMPRESSION_FORMAT_LZ4           (0x0006)
-#define COMPRESSION_FORMAT_DEFLATE       (0x0007)
-#define COMPRESSION_FORMAT_ZLIB          (0x0008)
-#define COMPRESSION_FORMAT_MAX           (0x0008)
-
-void test(uintptr_t moduleBase)
-{
-	uint32_t xor_key_1 = 0xECB4FC57;
-	uint64_t decrypt_offset_24 = 0;
-	char encrypted_function_name_1[24];
-
-	memset(encrypted_function_name_1, 0, sizeof(encrypted_function_name_1));
-
-	uintptr_t loaded_module_handle_1 = moduleBase + 0x60e20;
-	do
-	{
-		xor_key_1 = 0xFF3C613D - 0x43FD43FD * xor_key_1;
-		*(uint32_t*)&encrypted_function_name_1[decrypt_offset_24] = *(uint32_t*)((char*)loaded_module_handle_1
-			+ decrypt_offset_24)
-			^ xor_key_1;
-		decrypt_offset_24 += 4LL;
-	} while (decrypt_offset_24 < 0x18);
-
-	printf("%ls\n", encrypted_function_name_1);
-	auto que = 0;
-}
-
-void test2(uintptr_t modulebase)
-{
-	uintptr_t functionEnc = modulebase + 0x60dd0;
-	char encrypted_function_name_2[18];
-
-	memset(encrypted_function_name_2, 0, sizeof(encrypted_function_name_2));
-	*(uintptr_t*)encrypted_function_name_2 = 0;
-	uint32_t xor_key_4 = 0x53A97C6A;
-	*(uint16_t*)&encrypted_function_name_2[8] = 0;
-	encrypted_function_name_2[10] = 0;
-
-	BYTE xor_key_6 = 0;
-	uint64_t byte_index_8 = 8;
-	uint64_t decrypt_offset_8 = 0;
-	do
-	{
-		*(uint32_t*)&encrypted_function_name_2[decrypt_offset_8] = *(uint32_t*)((char*)functionEnc
-			+ decrypt_offset_8)
-			^ xor_key_4;
-		decrypt_offset_8 += 4LL;
-		xor_key_4 = (4
-			* (((((xor_key_4 ^ (xor_key_4 << 13)) >> 7) ^ xor_key_4 ^ (xor_key_4 << 13)) << 17)
-				^ ((xor_key_4 ^ (xor_key_4 << 13)) >> 7)
-				^ xor_key_4
-				^ (xor_key_4 << 13)))
-			| ((((((xor_key_4 ^ (xor_key_4 << 13)) >> 7) ^ xor_key_4 ^ (xor_key_4 << 13)) << 17)
-				^ ((xor_key_4 ^ (xor_key_4 << 13)) >> 7)
-				^ xor_key_4
-				^ (xor_key_4 << 13)) >> 30);
-	} while (decrypt_offset_8 < 8);
-
-
-	do
-	{
-		xor_key_6 = xor_key_4;
-		xor_key_4 >>= 8;
-		encrypted_function_name_2[byte_index_8] = *((BYTE*)functionEnc + byte_index_8) ^ xor_key_6;
-		++byte_index_8;
-	} while (byte_index_8 < 0xB);
-
-	printf("%ls\n", (wchar_t*)encrypted_function_name_2);
-
-	auto que = 0;
 }
 
 
@@ -185,16 +156,16 @@ ExtractedPayloads EACExtractor::ExtractPayloads()
 {
 	ExtractedPayloads payloads;
 
-	if (!launcherModule)
+	if (!LauncherModule)
 	{
-		std::cerr << "[!] Launcher module not loaded" << std::endl;
+		std::cerr << "[!] Launcher module not loaded" << '\n';
 		return payloads;
 	}
 
-	std::cout << "\n[*] Extracting embedded payloads..." << std::endl;
+	std::cout << "\n[*] Extracting embedded payloads..." << '\n';
 
 	auto userModuleEncrypted = PatternScanner::FindFirstMatch(
-		(uintptr_t)launcherModule, "A7 ED 96 0C 0F");
+		(uintptr_t)LauncherModule, "A7 ED 96 0C 0F");
 
 	if (userModuleEncrypted)
 	{
@@ -203,7 +174,7 @@ ExtractedPayloads EACExtractor::ExtractPayloads()
 		uint32_t userModeModuleSize = 0;
 
 		// First Sig
-		auto patternResult = PatternScanner::FindFirstMatch((uintptr_t)launcherModule,
+		auto patternResult = PatternScanner::FindFirstMatch((uintptr_t)LauncherModule,
 		                                                    "8B 15 ? ? ? ? ? 89 ? 24");
 		if (patternResult)
 		{
@@ -222,33 +193,34 @@ ExtractedPayloads EACExtractor::ExtractPayloads()
 
 		if (userModeModuleSize > 0 && userModeModuleSize < 100 * 1024 * 1024)
 		{
-			std::cout << "[+] Found user mode module: " << userModeModuleSize << " bytes" << std::endl;
+			std::cout << "[+] Found user mode module: " << userModeModuleSize << " bytes" << '\n';
 
-			payloads.userModeModule = std::vector<uint8_t>(
+			payloads.UserModeModule = std::vector<uint8_t>(
 				(uint8_t*)userModuleEncrypted,
 				(uint8_t*)userModuleEncrypted + userModeModuleSize);
 
-			payloads.userModeModule = CryptoUtils::DecryptBuffer(payloads.userModeModule);
-			payloads.hasUserMode    = true;
+			payloads.UserModeModule = CryptoUtils::DecryptBuffer(payloads.UserModeModule);
+			payloads.HasUserMode    = true;
 		}
 	}
 
 #ifdef _WIN64
 	auto driverPattern = PatternScanner::FindFirstMatch(
-		(uintptr_t)launcherModule, "48 8D 15 ? ? ? ? 48 8B CE E8 ? ? ? ? 49 83 FE");
-
-	using getSize_t  = uint64_t(__fastcall*)(uintptr_t,uintptr_t compressedData, uintptr_t bufferOut);
-	auto getSizeFunc = (getSize_t)((uintptr_t)launcherModule + 0x318b0);
-
-	test((uintptr_t)launcherModule);
-	test2((uintptr_t)launcherModule);
+		(uintptr_t)LauncherModule, "48 8D 15 ? ? ? ? 48 8B CE E8 ? ? ? ? 49 83 FE");
 
 
 	if (driverPattern)
 	{
 		auto driverDataPtr     = PatternScanner::ResolveRelative(driverPattern, 3, 7);
 		auto driverSizePattern = PatternScanner::FindFirstMatch(
-			(uintptr_t)launcherModule, "44 8B 35 ? ? ? ? 41 8B CE");
+			(uintptr_t)LauncherModule, "44 8B 35 ? ? ? ? 41 8B CE");
+
+		if (!driverSizePattern)
+		{
+			driverSizePattern = PatternScanner::FindFirstMatch(
+				(uintptr_t)LauncherModule, "44 8B 35 ? ? ? ? 33 D2");
+		}
+
 
 		if (driverSizePattern)
 		{
@@ -257,36 +229,31 @@ ExtractedPayloads EACExtractor::ExtractPayloads()
 
 			if (driverSize > 0 && driverSize < 100 * 1024 * 1024)
 			{
-				std::cout << "[+] Found driver module: " << driverSize << " bytes" << std::endl;
+				std::cout << "[+] Found driver module: " << driverSize << " bytes" << '\n';
 
-				payloads.driverModule = std::vector(
+				payloads.DriverModule = std::vector(
 					(uint8_t*)driverDataPtr,
 					(uint8_t*)driverDataPtr + driverSize);
 
 				// Decrypt Buffer
-				payloads.driverModule = CryptoUtils::DecryptBuffer(payloads.driverModule);
+				payloads.DriverModule = CryptoUtils::DecryptBuffer(payloads.DriverModule);
 
 				// Decompress Buffer
-				BYTE* decompressedData = nullptr;
+				BYTE*  decompressedData = nullptr;
 				size_t decompressedSize = 0;
 
 				if (CryptoUtils::DecompressBuffer(
-					payloads.driverModule.data(),
-					payloads.driverModule.size(),
+					payloads.DriverModule.data(),
+					payloads.DriverModule.size(),
 					&decompressedData,
 					&decompressedSize))
 				{
-					payloads.driverModule = std::vector(
+					payloads.DriverModule = std::vector(
 						decompressedData,
 						decompressedData + decompressedSize);
 
-					payloads.hasDriver = true;
+					payloads.HasDriver = true;
 				}
-
-
-
-
-				
 			}
 		}
 	}
@@ -311,22 +278,22 @@ bool EACExtractor::SaveExtractedPayloads(const ExtractedPayloads& payloads)
 {
 	bool success = true;
 
-	if (payloads.hasUserMode)
+	if (payloads.HasUserMode)
 	{
 		std::string userModePath = dumpFolder + "\\EAC_UserMode.dll";
-		if (!FileUtils::SaveBinaryFile(userModePath, payloads.userModeModule))
+		if (!FileUtils::SaveBinaryFile(userModePath, payloads.UserModeModule))
 		{
-			std::cerr << "[!] Failed to save user mode module" << std::endl;
+			std::cerr << "[!] Failed to save user mode module" << '\n';
 			success = false;
 		}
 	}
 
-	if (payloads.hasDriver)
+	if (payloads.HasDriver)
 	{
 		std::string driverPath = dumpFolder + "\\EAC_Driver.sys";
-		if (!FileUtils::SaveBinaryFile(driverPath, payloads.driverModule))
+		if (!FileUtils::SaveBinaryFile(driverPath, payloads.DriverModule))
 		{
-			std::cerr << "[!] Failed to save driver module" << std::endl;
+			std::cerr << "[!] Failed to save driver module" << '\n';
 			success = false;
 		}
 	}
@@ -336,19 +303,19 @@ bool EACExtractor::SaveExtractedPayloads(const ExtractedPayloads& payloads)
 
 void EACExtractor::Cleanup()
 {
-	if (launcherModule)
+	if (LauncherModule)
 	{
-		FreeLibrary(launcherModule);
-		launcherModule = nullptr;
+		FreeLibrary(LauncherModule);
+		LauncherModule = nullptr;
 	}
 }
 
 bool EACExtractor::Process()
 {
-	std::cout << "========================================" << std::endl;
-	std::cout << "       EAC Payload Extractor v2.0      " << std::endl;
-	std::cout << "========================================" << std::endl;
-	std::cout << "[*] Input file: " << inputFilePath << std::endl;
+	std::cout << "========================================" << '\n';
+	std::cout << "       EAC Payload Extractor v2.0      " << '\n';
+	std::cout << "========================================" << '\n';
+	std::cout << "[*] Input file: " << InputFilePath << '\n';
 
 	if (!CreateOutputFolder())
 	{
@@ -382,10 +349,10 @@ bool EACExtractor::Process()
 		return false;
 	}
 
-	std::cout << "\n========================================" << std::endl;
-	std::cout << "[+] Extraction completed successfully!" << std::endl;
-	std::cout << "[+] Output folder: " << dumpFolder << std::endl;
-	std::cout << "========================================" << std::endl;
+	std::cout << "\n========================================" << '\n';
+	std::cout << "[+] Extraction completed successfully!" << '\n';
+	std::cout << "[+] Output folder: " << dumpFolder << '\n';
+	std::cout << "========================================" << '\n';
 
 	return true;
 }

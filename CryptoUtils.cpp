@@ -32,10 +32,10 @@ namespace CryptoUtils
 	}
 
 	bool DecompressBuffer(
-		BYTE* compressedData,
-		size_t      compressedSize,
-		BYTE**      outBuffer,
-		size_t*     outSize
+		BYTE*   compressedData,
+		size_t  compressedSize,
+		BYTE**  outBuffer,
+		size_t* outSize
 	)
 	{
 		DECOMPRESSOR_HANDLE decHandle = nullptr;
@@ -49,7 +49,7 @@ namespace CryptoUtils
 		// First call to get required buffer size
 		size_t needed = 0;
 		BOOL   ok     = Decompress(decHandle, compressedData, compressedSize,
-		                           nullptr, 0, &needed);
+		                     nullptr, 0, &needed);
 		if (!ok && GetLastError() != ERROR_INSUFFICIENT_BUFFER)
 		{
 			CloseDecompressor(decHandle);
@@ -66,7 +66,7 @@ namespace CryptoUtils
 		// Actual decompression
 		size_t actual = 0;
 		ok            = Decompress(decHandle, compressedData, compressedSize,
-		                           buffer, needed, &actual);
+		                buffer, needed, &actual);
 		if (!ok)
 		{
 			CloseDecompressor(decHandle);

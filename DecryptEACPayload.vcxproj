@@ -131,19 +131,24 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ConsoleUtils.cpp" />
     <ClCompile Include="CryptoUtils.cpp" />
-    <ClCompile Include="DecryptEACPayload.cpp" />
     <ClCompile Include="EACExtractor.cpp" />
     <ClCompile Include="FileUtils.cpp" />
+    <ClCompile Include="GameConfig.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MemoryDumper.cpp" />
+    <ClCompile Include="ModuleDownloader.cpp" />
     <ClCompile Include="PatternScanner.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ConsoleUtils.h" />
     <ClInclude Include="CryptoUtils.h" />
     <ClInclude Include="EACExtractor.h" />
     <ClInclude Include="FileUtils.h" />
+    <ClInclude Include="GameConfig.h" />
     <ClInclude Include="MemoryDumper.h" />
+    <ClInclude Include="ModuleDownloader.h" />
     <ClInclude Include="PatternScanner.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

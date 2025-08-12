@@ -1,0 +1,25 @@
+{
+  "version": "1.1",
+  "description": "EAC Module Configuration - Community maintained list of game IDs",
+  "config": {
+    "baseUrl": "https://modules-cdn.eac-prod.on.epicgames.com/modules",
+    "defaultPlatform": "win64"
+  },
+  "games": [
+    {
+      "name": "Gray Zone Warfare",
+      "productId": "320d5d3f30f5495ebae73a8c74bc349d",
+      "deploymentId": "5844bb109c5343f78b8f76f604ae3569"
+    },
+    {
+      "name": "Arc Raiders",
+      "productId": "9e8b37541e614575b4de303d2c2e44cf",
+      "deploymentId": "35e06571d8ab4de4b98519b624125459"
+    },
+    {
+      "name": "Fortnite",
+      "productId": "b2504259773b40e3a818f820e31979ca",
+      "deploymentId": "47b56979fab54704970a6b1331d1e291"
+    }
+  ]
+}

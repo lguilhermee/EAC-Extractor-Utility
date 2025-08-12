@@ -33,7 +33,16 @@
     <ClCompile Include="PatternScanner.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ConsoleUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="CryptoUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GameConfig.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleDownloader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -50,7 +59,16 @@
     <ClInclude Include="PatternScanner.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ConsoleUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="CryptoUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GameConfig.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleDownloader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

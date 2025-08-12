@@ -4,32 +4,34 @@
 #include <vector>
 #include <cstdint>
 
-struct ExtractedPayloads {
-    std::vector<uint8_t> userModeModule;
-    std::vector<uint8_t> driverModule;
-    bool hasUserMode = false;
-    bool hasDriver = false;
+struct ExtractedPayloads
+{
+	std::vector<uint8_t> UserModeModule;
+	std::vector<uint8_t> DriverModule;
+	bool                 HasUserMode = false;
+	bool                 HasDriver   = false;
 };
 
-class EACExtractor {
-private:
-    std::string dumpFolder;
-    std::string inputFilePath;
-    HMODULE launcherModule = nullptr;
-    
+class EACExtractor
+{
+	std::string dumpFolder;
+	std::string InputFilePath;
+	HMODULE     LauncherModule = nullptr;
+
 public:
-    EACExtractor(const std::string& inputFile);
-    ~EACExtractor();
-    
-    bool Process();
-    
+	EACExtractor(std::string inputFile);
+	EACExtractor(std::string inputFile, std::string outputFolder);
+	~EACExtractor();
+
+	bool Process();
+
 private:
-    bool CreateOutputFolder();
-    bool SaveOriginalFile();
-    bool DecryptAndSaveLauncher();
-    bool LoadLauncherModule();
-    bool DumpLoadedModule();
-    ExtractedPayloads ExtractPayloads();
-    bool SaveExtractedPayloads(const ExtractedPayloads& payloads);
-    void Cleanup();
+	bool              CreateOutputFolder();
+	bool              SaveOriginalFile();
+	bool              DecryptAndSaveLauncher();
+	bool              LoadLauncherModule();
+	bool              DumpLoadedModule();
+	ExtractedPayloads ExtractPayloads();
+	bool              SaveExtractedPayloads(const ExtractedPayloads& payloads);
+	void              Cleanup();
 };
