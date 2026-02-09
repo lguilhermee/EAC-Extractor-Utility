@@ -5,54 +5,58 @@
 #include "ModuleDownloader.h"
 #include "GameConfig.h"
 #include "FileUtils.h"
-#include "ConsoleUtils.h"
+#include "Log.h"
 
-using namespace ConsoleUtils;
+// ---- ANSI color helpers for interactive menus ----
+namespace
+{
+	constexpr auto Reset  = "\x1b[0m";
+	constexpr auto Bold   = "\x1b[1m";
+	constexpr auto Yellow = "\x1b[33m";
+	constexpr auto Cyan   = "\x1b[36m";
+	constexpr auto Gray   = "\x1b[90m";
+}
 
 static void PrintMainMenu()
 {
-	std::cout << '\n';
-	PrintInfo("What would you like to do?");
-	std::cout << Color::Yellow << "[1]" << Color::Reset << " Download and extract from Epic Games CDN" << '\n';
-	std::cout << Color::Yellow << "[2]" << Color::Reset << " Extract from local file" << '\n';
-	std::cout << Color::Yellow << "[3]" << Color::Reset << " List available games" << '\n';
-	std::cout << Color::Yellow << "[4]" << Color::Reset << " Show help" << '\n';
-	std::cout << Color::Yellow << "[Q]" << Color::Reset << " Quit" << '\n';
+	printf("\n");
+	Log::Info("What would you like to do?");
+	printf("%s[1]%s Download and extract from Epic Games CDN\n", Yellow, Reset);
+	printf("%s[2]%s Extract from local file\n", Yellow, Reset);
+	printf("%s[3]%s List available games\n", Yellow, Reset);
+	printf("%s[4]%s Show help\n", Yellow, Reset);
+	printf("%s[Q]%s Quit\n", Yellow, Reset);
 }
 
-void PrintUsage(const char* programName)
+static void PrintUsage(const char* programName)
 {
-	PrintBanner();
-	std::cout << Color::Bold << "Usage:" << Color::Reset << ' ' << programName << " [options]" << '\n';
-	std::cout << "       " << programName << " -h | --help" << '\n';
-	std::cout << '\n' << Color::Bold << "Options:" << Color::Reset << '\n';
-	std::cout << "  " << Color::Yellow << "-d, --download" << Color::Reset
-		<< "    Download and then extract from Epic Games CDN" << '\n';
-	std::cout << "  " << Color::Yellow << "-e, --extract" << Color::Reset
-		<< "     Extract and decrypt local EAC binary (optional: path)" << '\n';
-	std::cout << "  " << Color::Yellow << "-l, --list" << Color::Reset
-		<< "        List available games from configuration" << '\n';
-	std::cout << '\n' << Color::Bold << "Output:" << Color::Reset << '\n';
-	std::cout << "  Creates timestamped folder in C:" << Color::Yellow << "\\EAC_Dumps" << Color::Reset
-		<< " with extracted components" << '\n';
+	Log::Banner();
+	printf("%sUsage:%s %s [options]\n", Bold, Reset, programName);
+	printf("       %s -h | --help\n", programName);
+	printf("\n%sOptions:%s\n", Bold, Reset);
+	printf("  %s-d, --download%s    Download and then extract from Epic Games CDN\n", Yellow, Reset);
+	printf("  %s-e, --extract%s     Extract and decrypt local EAC binary (optional: path)\n", Yellow, Reset);
+	printf("  %s-l, --list%s        List available games from configuration\n", Yellow, Reset);
+	printf("\n%sOutput:%s\n", Bold, Reset);
+	printf("  Creates timestamped folder in C:%s\\EAC_Dumps%s with extracted components\n", Yellow, Reset);
 }
 
 static std::string SelectPlatform(const GameConfig& config)
 {
 	auto platforms = config.GetAvailablePlatforms();
-	std::cout << '\n' << Color::Bold << "Select platform:" << Color::Reset << '\n';
+	printf("\n%sSelect platform:%s\n", Bold, Reset);
 
 	for (size_t i = 0; i < platforms.size(); ++i)
 	{
-		std::cout << "[" << (i + 1) << "] " << platforms[i];
+		printf("[%zu] %s", i + 1, platforms[i].c_str());
 		if (platforms[i] == config.GetDefaultPlatform())
 		{
-			std::cout << " " << Color::Gray << "(default)" << Color::Reset;
+			printf(" %s(default)%s", Gray, Reset);
 		}
-		std::cout << '\n';
+		printf("\n");
 	}
 
-	std::cout << '\n' << Color::Yellow << "Choice (default: " << config.GetDefaultPlatform() << "): " << Color::Reset;
+	printf("\n%sChoice (default: %s): %s", Yellow, config.GetDefaultPlatform().c_str(), Reset);
 	std::string choice;
 	std::getline(std::cin, choice);
 
@@ -71,164 +75,36 @@ static std::string SelectPlatform(const GameConfig& config)
 	}
 	catch (...)
 	{
-		PrintError("[!] Invalid input, please enter a valid number.");
+		Log::Error("Invalid input, please enter a valid number.");
 		return config.GetDefaultPlatform();
 	}
 
-	PrintWarning("[!] Invalid choice, using default platform");
+	Log::Warning("Invalid choice, using default platform");
 	return config.GetDefaultPlatform();
 }
 
-static bool DownloadModuleTo(const std::string& outputPath, const std::string& gameName = "")
+static bool ExtractModuleFrom(const std::string& inputFile, const std::string& outputFolder)
 {
-	GameConfig  config;
-	bool        hasConfig        = config.LoadConfig();
-	std::string selectedGameName = gameName;
-	std::string productId;
-	std::string deploymentId;
-
-	std::cout << '\n' << Color::Bold << Color::Cyan << "=== EAC Module Downloader ===" << Color::Reset <<
-		'\n';
-
-	if (hasConfig && !config.IsEmpty())
-	{
-		PrintSuccess("[+] Found game configuration file!");
-		config.ListGames();
-
-		std::cout << '\n' << Color::Bold << "Select an option:" << Color::Reset << '\n';
-		std::cout << "[1-" << config.GetAllGames().size() << "] Select a game from the list" << '\n';
-		std::cout << "[" << Color::Yellow << "C" << Color::Reset << "] Enter ProductID and DeploymentID" <<
-			'\n';
-		std::cout << '\n' << Color::Yellow << "Choice: " << Color::Reset;
-
-		std::string choice;
-		std::getline(std::cin, choice);
-
-		if (!choice.empty() && (choice[0] == 'c' || choice[0] == 'C'))
-		{
-			// Custom input - fall through to manual input
-		}
-		else
-		{
-			try
-			{
-				int  gameIndex = std::stoi(choice) - 1;
-				auto games     = config.GetAllGames();
-				if (gameIndex >= 0 && gameIndex < static_cast<int>(games.size()))
-				{
-					auto& game       = games[gameIndex];
-					selectedGameName = game.Name;
-					productId        = game.ProductId;
-					deploymentId     = game.DeploymentId;
-
-					PrintSuccess(std::string("[+] Selected: ") + game.Name);
-					PrintInfo(std::string("[+] ProductID: ") + game.ProductId);
-					PrintInfo(std::string("[+] DeploymentID: ") + game.DeploymentId);
-
-					// Select platform
-					std::string platform = SelectPlatform(config);
-					PrintInfo(std::string("[+] Platform: ") + platform);
-
-					return ModuleDownloader::DownloadModule(game.ProductId, game.DeploymentId,
-					                                        platform, config.GetBaseUrl(),
-					                                        outputPath, ShowProgress);
-				}
-			}
-			catch (...)
-			{
-				PrintError("[!] Invalid choice, please enter a valid number or 'C' for custom input.");
-			}
-		}
-	}
-
-	// Manual input
-	if (productId.empty() || deploymentId.empty())
-	{
-		PrintInfo("\n[+] Please enter the EAC module details:");
-		std::cout << Color::Gray << "[+] Example: Gray Zone Warfare" << Color::Reset << '\n';
-		std::cout << Color::Gray << "[+] ProductID: 320d5d3f30f5495ebae73a8c74bc349d" << Color::Reset << '\n';
-		std::cout << Color::Gray << "[+] DeploymentID: 5844bb109c5343f78b8f76f604ae3569" << Color::Reset << '\n';
-
-		std::cout << "\n" << Color::Yellow << "Game name (optional): " << Color::Reset;
-		std::getline(std::cin, selectedGameName);
-
-		std::cout << Color::Yellow << "ProductID: " << Color::Reset;
-		std::getline(std::cin, productId);
-
-		std::cout << Color::Yellow << "DeploymentID: " << Color::Reset;
-		std::getline(std::cin, deploymentId);
-	}
-
-	if (productId.empty() || deploymentId.empty())
-	{
-		PrintError("[!] Product ID and Deployment ID are required!");
-		return false;
-	}
-
-	// Save to config if game name provided
-	if (!selectedGameName.empty() && (gameName.empty() || gameName == selectedGameName))
-	{
-		std::cout << '\n' << Color::Yellow << "[?] Save this configuration for future use? (y/N): " <<
-			Color::Reset;
-		std::string saveChoice;
-		std::getline(std::cin, saveChoice);
-
-		if (!saveChoice.empty() && (saveChoice[0] == 'y' || saveChoice[0] == 'Y'))
-		{
-			GameInfo gameInfo;
-			gameInfo.Name         = selectedGameName;
-			gameInfo.ProductId    = productId;
-			gameInfo.DeploymentId = deploymentId;
-
-			config.AddGame(gameInfo);
-			if (config.SaveConfig())
-			{
-				PrintSuccess("[+] Configuration saved successfully!");
-			}
-			else
-			{
-				PrintError("[!] Failed to save configuration");
-			}
-		}
-	}
-
-	// Select platform
-	std::string platform = SelectPlatform(config);
-	PrintInfo(std::string("[+] Platform: ") + platform);
-
-	return ModuleDownloader::DownloadModule(productId, deploymentId, platform, config.GetBaseUrl(),
-	                                        outputPath, ShowProgress);
-}
-
-bool ExtractModuleFrom(const std::string& inputFile, const std::string& outputFolder)
-{
-	std::cout << '\n' << Color::Bold << Color::Cyan << "=== EAC Payload Extractor ===" << Color::Reset <<
-		'\n';
-	PrintInfo(std::string("[+] Input file: ") + inputFile);
+	printf("\n%s%s=== EAC Payload Extractor ===%s\n", Bold, Cyan, Reset);
+	Log::Info("Input file: %s", inputFile.c_str());
 
 	try
 	{
-		EACExtractor extractor(outputFolder.empty() ? inputFile : inputFile, outputFolder);
+		EACExtractor extractor(inputFile, outputFolder);
 
 		if (!extractor.Process())
 		{
-			PrintError("[!] Extraction failed");
+			Log::Error("Extraction failed");
 			return false;
 		}
 
-		PrintSuccess("[+] Extraction completed successfully!");
 		return true;
 	}
 	catch (const std::exception& e)
 	{
-		PrintError(std::string("[!] Exception: ") + e.what());
+		Log::Error("Exception: %s", e.what());
 		return false;
 	}
-}
-
-static bool ExtractModule()
-{
-	return ExtractModuleFrom("eac_.bin", "");
 }
 
 static bool DownloadThenExtract()
@@ -239,18 +115,17 @@ static bool DownloadThenExtract()
 	std::string productId;
 	std::string deploymentId;
 
-	std::cout << '\n' << Color::Bold << Color::Cyan << "=== EAC Module Downloader ===" << Color::Reset << '\n';
+	printf("\n%s%s=== EAC Module Downloader ===%s\n", Bold, Cyan, Reset);
 
-	// Handle game selection
 	if (!config.IsEmpty())
 	{
-		PrintSuccess("[+] Found game configuration file!");
+		Log::Success("Found game configuration file!");
 		config.ListGames();
 
-		std::cout << '\n' << Color::Bold << "Select an option:" << Color::Reset << '\n';
-		std::cout << "[1-" << config.GetAllGames().size() << "] Select a game from the list" << '\n';
-		std::cout << "[" << Color::Yellow << "C" << Color::Reset << "] Enter ProductID and DeploymentID" << '\n';
-		std::cout << '\n' << Color::Yellow << "Choice: " << Color::Reset;
+		printf("\n%sSelect an option:%s\n", Bold, Reset);
+		printf("[1-%zu] Select a game from the list\n", config.GetAllGames().size());
+		printf("[%sC%s] Enter ProductID and DeploymentID\n", Yellow, Reset);
+		printf("\n%sChoice: %s", Yellow, Reset);
 
 		std::string choice;
 		std::getline(std::cin, choice);
@@ -268,19 +143,19 @@ static bool DownloadThenExtract()
 					productId    = game.ProductId;
 					deploymentId = game.DeploymentId;
 
-					PrintSuccess(std::string("[+] Selected: ") + game.Name);
-					PrintInfo(std::string("[+] ProductID: ") + game.ProductId);
-					PrintInfo(std::string("[+] DeploymentID: ") + game.DeploymentId);
+					Log::Success("Selected: %s", game.Name.c_str());
+					Log::Info("ProductID: %s", game.ProductId.c_str());
+					Log::Info("DeploymentID: %s", game.DeploymentId.c_str());
 				}
 				else
 				{
-					PrintError("[!] Invalid choice index");
+					Log::Error("Invalid choice index");
 					return false;
 				}
 			}
 			catch (...)
 			{
-				PrintError("[!] Invalid choice, please enter a valid number or 'C' for custom input.");
+				Log::Error("Invalid choice, please enter a valid number or 'C' for custom input.");
 				return false;
 			}
 		}
@@ -289,31 +164,29 @@ static bool DownloadThenExtract()
 	// Manual input if needed
 	if (productId.empty() || deploymentId.empty())
 	{
-		PrintInfo("\n[+] Please enter the EAC module details:");
-		std::cout << Color::Gray << "[+] Example: Gray Zone Warfare" << Color::Reset << '\n';
-		std::cout << Color::Gray << "[+] ProductID: 320d5d3f30f5495ebae73a8c74bc349d" << Color::Reset << '\n';
-		std::cout << Color::Gray << "[+] DeploymentID: 5844bb109c5343f78b8f76f604ae3569" << Color::Reset << '\n';
+		Log::Info("Please enter the EAC module details:");
+		printf("%sExample: Gray Zone Warfare%s\n", Gray, Reset);
+		printf("%sProductID: 320d5d3f30f5495ebae73a8c74bc349d%s\n", Gray, Reset);
+		printf("%sDeploymentID: 5844bb109c5343f78b8f76f604ae3569%s\n", Gray, Reset);
 
-		std::cout << "\n" << Color::Yellow << "Game name (optional): " << Color::Reset;
+		printf("\n%sGame name (optional): %s", Yellow, Reset);
 		std::getline(std::cin, gameName);
 
-		std::cout << Color::Yellow << "ProductID: " << Color::Reset;
+		printf("%sProductID: %s", Yellow, Reset);
 		std::getline(std::cin, productId);
 
-		std::cout << Color::Yellow << "DeploymentID: " << Color::Reset;
+		printf("%sDeploymentID: %s", Yellow, Reset);
 		std::getline(std::cin, deploymentId);
 
 		if (productId.empty() || deploymentId.empty())
 		{
-			PrintError("[!] Product ID and Deployment ID are required!");
+			Log::Error("Product ID and Deployment ID are required!");
 			return false;
 		}
 
-		// Save to config if game name provided
 		if (!gameName.empty())
 		{
-			std::cout << '\n' << Color::Yellow << "[?] Save this configuration for future use? (y/N): " <<
-				Color::Reset;
+			printf("\n%s[?] Save this configuration for future use? (y/N): %s", Yellow, Reset);
 			std::string saveChoice;
 			std::getline(std::cin, saveChoice);
 
@@ -326,13 +199,9 @@ static bool DownloadThenExtract()
 
 				config.AddGame(gameInfo);
 				if (config.SaveConfig())
-				{
-					PrintSuccess("[+] Configuration saved successfully!");
-				}
+					Log::Success("Configuration saved successfully!");
 				else
-				{
-					PrintError("[!] Failed to save configuration");
-				}
+					Log::Error("Failed to save configuration");
 			}
 		}
 	}
@@ -343,38 +212,34 @@ static bool DownloadThenExtract()
 		                               : FileUtils::CreateDumpFolder(gameName);
 	if (dumpFolder.empty())
 	{
-		PrintError("[!] Failed to create dump folder");
+		Log::Error("Failed to create dump folder");
 		return false;
 	}
-
-	PrintSuccess(std::string("[+] Created dump folder: ") + dumpFolder);
 
 	// Select platform
 	std::string platform = SelectPlatform(config);
-	PrintInfo(std::string("[+] Platform: ") + platform);
+	Log::Info("Platform: %s", platform.c_str());
 
 	const std::string downloadedPath = dumpFolder + "\\eac_.bin";
 
-	// Download directly using ModuleDownloader
 	if (!ModuleDownloader::DownloadModule(productId, deploymentId, platform, config.GetBaseUrl(),
-	                                      downloadedPath, ShowProgress))
+	                                      downloadedPath, Log::Progress))
 	{
-		PrintError("[!] Download failed");
+		Log::Error("Download failed");
 		return false;
 	}
 
-	PrintInfo("\n[*] Download finished. Starting extraction...");
+	Log::Info("Download finished. Starting extraction...");
 
 	return ExtractModuleFrom(downloadedPath, dumpFolder);
 }
 
 int main(int argc, char* argv[])
 {
-	SetConsoleOutputCP(CP_UTF8);
-	EnableVirtualTerminalProcessing();
-	PrintBanner();
+	Log::Init();
+	Log::Banner();
 
-	// Check for command line arguments
+	// Command line arguments
 	if (argc > 1)
 	{
 		std::string arg = argv[1];
@@ -404,7 +269,7 @@ int main(int argc, char* argv[])
 			}
 			else
 			{
-				PrintInfo("[i] No game configuration file found.");
+				Log::Info("No game configuration file found.");
 			}
 			return 0;
 		}
@@ -415,7 +280,7 @@ int main(int argc, char* argv[])
 
 	while (true)
 	{
-		std::cout << '\n' << Color::Yellow << "Choice (1-4, Q): " << Color::Reset;
+		printf("\n%sChoice (1-4, Q): %s", Yellow, Reset);
 		std::string choice;
 		std::getline(std::cin, choice);
 
@@ -428,7 +293,7 @@ int main(int argc, char* argv[])
 
 		case '2':
 			{
-				std::cout << Color::Yellow << "Enter path to EAC binary (default: eac_.bin): " << Color::Reset;
+				printf("%sEnter path to EAC binary (default: eac_.bin): %s", Yellow, Reset);
 				std::string path;
 				std::getline(std::cin, path);
 				if (path.empty()) path = "eac_.bin";
@@ -444,8 +309,8 @@ int main(int argc, char* argv[])
 				}
 				else
 				{
-					PrintInfo("[i] No game configuration file found.");
-					PrintInfo("[i] Use option 1 to download and configure games.");
+					Log::Info("No game configuration file found.");
+					Log::Info("Use option 1 to download and configure games.");
 				}
 				break;
 			}
@@ -456,11 +321,11 @@ int main(int argc, char* argv[])
 
 		case 'q':
 		case 'Q':
-			PrintSuccess("Goodbye!");
+			Log::Success("Goodbye!");
 			return 0;
 
 		default:
-			PrintWarning("[!] Invalid choice. Please enter 1-4 or Q.");
+			Log::Warning("Invalid choice. Please enter 1-4 or Q.");
 			break;
 		}
 	}

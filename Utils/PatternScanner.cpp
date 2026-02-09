@@ -1,5 +1,5 @@
 #include "PatternScanner.h"
-#include <iostream>
+#include "Log.h"
 #include <cstring>
 
 namespace PatternScanner
@@ -78,11 +78,10 @@ namespace PatternScanner
 		auto results = PatternScan(moduleAddress, signature);
 		if (!results.empty())
 		{
-			std::cout << "[+] Pattern found: " << signature << " at 0x"
-				<< std::hex << results[0] << std::dec << '\n';
+			Log::Success("Pattern found: %s at 0x%llX", signature, (unsigned long long)results[0]);
 			return results[0];
 		}
-		std::cerr << "[!] Pattern not found: " << signature << '\n';
+		Log::Warning("Pattern not found: %s", signature);
 		return 0;
 	}
 }

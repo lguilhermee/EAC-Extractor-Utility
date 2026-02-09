@@ -1,5 +1,5 @@
 #include "GameConfig.h"
-#include <iostream>
+#include "Log.h"
 #include <fstream>
 #include <sstream>
 #include <iomanip>
@@ -28,7 +28,7 @@ bool GameConfig::LoadConfig()
 	}
 	catch (const std::exception& e)
 	{
-		std::cerr << "[!] Error parsing config file: " << e.what() << '\n';
+		Log::Error("Error parsing config file: %s", e.what());
 		return false;
 	}
 }
@@ -38,7 +38,7 @@ bool GameConfig::SaveConfig()
 	std::ofstream file(ConfigFilePath);
 	if (!file.is_open())
 	{
-		std::cerr << "[!] Failed to create config file: " << ConfigFilePath << '\n';
+		Log::Error("Failed to create config file: %s", ConfigFilePath.c_str());
 		return false;
 	}
 
@@ -99,20 +99,19 @@ void GameConfig::ListGames() const
 {
 	if (Games.empty())
 	{
-		std::cout << "[i] No games configured yet." << '\n';
+		Log::Info("No games configured yet.");
 		return;
 	}
 
-	std::cout << "\n[+] Available games:" << '\n';
-	std::cout << std::string(80, '-') << '\n';
+	Log::Success("Available games:");
+	printf("%.80s\n", "--------------------------------------------------------------------------------");
 
 	for (size_t i = 0; i < Games.size(); ++i)
 	{
 		const auto& game = Games[i];
-		std::cout << "[" << (i + 1) << "] " << game.Name << '\n';
-		std::cout << "    ProductID: " << game.ProductId << '\n';
-		std::cout << "    DeploymentID: " << game.DeploymentId << '\n';
-		std::cout << '\n';
+		printf("[%zu] %s\n", i + 1, game.Name.c_str());
+		printf("    ProductID: %s\n", game.ProductId.c_str());
+		printf("    DeploymentID: %s\n\n", game.DeploymentId.c_str());
 	}
 }
 

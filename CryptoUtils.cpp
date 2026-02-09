@@ -1,6 +1,5 @@
-#include <Windows.h>
-#include <iostream>
 #include "CryptoUtils.h"
+#include "Log.h"
 #include "miniz.h"
 
 namespace CryptoUtils
@@ -24,13 +23,12 @@ namespace CryptoUtils
 			*pCurrentByte -= pCurrentByte[1];
 		}
 
-		std::cout << "[+] Decrypted payload (" << moduleSize << " bytes)" << std::endl;
+		Log::Success("Decrypted payload (%zu bytes)", moduleSize);
 		return tmp;
 	}
 
 	std::vector<uint8_t> UnpackModule(const std::vector<uint8_t>& encryptedVector)
 	{
-		// Decrypt (chain cipher) then inflate (raw deflate)
 		std::vector<uint8_t> decrypted = DecryptPayload(encryptedVector);
 
 		size_t decompressedSize = 0;
@@ -43,12 +41,11 @@ namespace CryptoUtils
 
 		if (!pDecompressed)
 		{
-			std::cerr << "[!] Failed to inflate module" << std::endl;
+			Log::Error("Failed to inflate module");
 			return {};
 		}
 
-		std::cout << "[+] Unpacked module: " << decrypted.size()
-		          << " -> " << decompressedSize << " bytes" << std::endl;
+		Log::Success("Unpacked module: %zu -> %zu bytes", decrypted.size(), decompressedSize);
 
 		std::vector<uint8_t> result(
 			static_cast<uint8_t*>(pDecompressed),
@@ -75,12 +72,11 @@ namespace CryptoUtils
 
 		if (!pCompressed)
 		{
-			std::cerr << "[!] Failed to deflate module" << std::endl;
+			Log::Error("Failed to deflate module");
 			return {};
 		}
 
-		std::cout << "[+] Packed module: " << plainVector.size()
-		          << " -> " << compressedSize << " bytes" << std::endl;
+		Log::Success("Compressed module: %zu -> %zu bytes", plainVector.size(), compressedSize);
 
 		std::vector<uint8_t> result(
 			static_cast<uint8_t*>(pCompressed),
@@ -89,17 +85,6 @@ namespace CryptoUtils
 		mz_free(pCompressed);
 
 		// Step 2: Chain cipher encryption (exact inverse of DecryptPayload)
-		//
-		// DecryptPayload does (in order):
-		//   1. buf[n-1] += (3 - 3*n)
-		//   2. for i = n-2 downto 1:  buf[i] += (-3*i - buf[i+1])
-		//   3. buf[0] -= buf[1]
-		//
-		// To encrypt, undo each step in reverse order:
-		//   undo 3: buf[0] += buf[1]
-		//   undo 2: for i = 1 to n-2:  buf[i] -= (-3*i - buf[i+1])
-		//   undo 1: buf[n-1] -= (3 - 3*n)
-
 		size_t   n = result.size();
 		uint8_t* p = result.data();
 
@@ -113,34 +98,7 @@ namespace CryptoUtils
 			p[n - 1] -= 3 - 3 * n;
 		}
 
-		std::cout << "[+] Encrypted payload (" << n << " bytes)" << std::endl;
+		Log::Success("Encrypted payload (%zu bytes)", n);
 		return result;
-	}
-
-	std::vector<uint8_t> EncryptPayload(const std::vector<uint8_t>& decryptedVector)
-	{
-		std::vector<uint8_t> tmp = decryptedVector;
-
-		auto     beginBuffer  = tmp.data();
-		auto     endBuffer    = beginBuffer + tmp.size();
-		uint8_t* pCurrentByte = tmp.data();
-		size_t   moduleSize   = endBuffer - beginBuffer;
-
-		if (moduleSize >= 2)
-		{
-			*pCurrentByte += pCurrentByte[1];
-
-			for (size_t i = 0; i < moduleSize - 2; ++i)
-				pCurrentByte[i] -= -3 * i - pCurrentByte[i + 1];
-
-			endBuffer[-1] -= 3 - 3 * (LOBYTE(endBuffer[-1]) - LOBYTE(beginBuffer[0]));
-		}
-
-		pCurrentByte[0]        = 0xA7;
-		tmp.at(moduleSize - 1) = 0xfd;
-		tmp.at(moduleSize - 2) = 0xfa;
-
-		std::cout << "[+] Encrypted buffer (" << moduleSize << " bytes)" << std::endl;
-		return tmp;
 	}
 }

@@ -1,5 +1,5 @@
 #include "FileUtils.h"
-#include <iostream>
+#include "Log.h"
 #include <fstream>
 #include <filesystem>
 #include <chrono>
@@ -14,7 +14,7 @@ namespace FileUtils
 		std::ifstream file(filePath, std::ios::binary);
 		if (!file)
 		{
-			std::cerr << "Failed to open the file: " << filePath << '\n';
+			Log::Error("Failed to open the file: %s", filePath.c_str());
 			return {};
 		}
 
@@ -26,7 +26,7 @@ namespace FileUtils
 
 		if (!file.read(reinterpret_cast<char*>(buffer.data()), fileSize))
 		{
-			std::cerr << "Failed to read the file: " << filePath << '\n';
+			Log::Error("Failed to read the file: %s", filePath.c_str());
 			return {};
 		}
 
@@ -38,32 +38,30 @@ namespace FileUtils
 		std::ofstream file(filePath, std::ios::binary);
 		if (!file)
 		{
-			std::cerr << "Failed to create the file: " << filePath << '\n';
+			Log::Error("Failed to create the file: %s", filePath.c_str());
 			return false;
 		}
 
 		file.write(reinterpret_cast<const char*>(data.data()), data.size());
 		if (!file)
 		{
-			std::cerr << "Failed to write the data to the file: " << filePath << '\n';
+			Log::Error("Failed to write the data to the file: %s", filePath.c_str());
 			return false;
 		}
 
-		std::cout << "[+] Saved file: " << filePath << " (" << data.size() << " bytes)" << '\n';
+		Log::Success("Saved file: %s (%zu bytes)", filePath.c_str(), data.size());
 		return true;
 	}
 
 	std::string SanitizeFileName(const std::string& name)
 	{
 		std::string sanitized = name;
-		// Replace invalid filename characters
 		const std::string invalid = "<>:\"|?*";
 		for (char& c : sanitized) {
 			if (invalid.find(c) != std::string::npos || c < 32) {
 				c = '_';
 			}
 		}
-		// Trim spaces
 		while (!sanitized.empty() && sanitized.back() == ' ') {
 			sanitized.pop_back();
 		}
@@ -108,7 +106,7 @@ namespace FileUtils
 		}
 		catch (const std::exception& e)
 		{
-			std::cerr << "Failed to create directory: " << path << " - " << e.what() << '\n';
+			Log::Error("Failed to create directory: %s - %s", path.c_str(), e.what());
 			return false;
 		}
 	}
@@ -124,7 +122,7 @@ namespace FileUtils
 
 		if (!EnsureDirectoryExists(baseDir))
 		{
-			std::cerr << "Failed to create base directory: " << baseDir << '\n';
+			Log::Error("Failed to create base directory: %s", baseDir.c_str());
 			return "";
 		}
 
@@ -132,11 +130,11 @@ namespace FileUtils
 
 		if (!EnsureDirectoryExists(timestampedFolder))
 		{
-			std::cerr << "Failed to create dump folder: " << timestampedFolder << '\n';
+			Log::Error("Failed to create dump folder: %s", timestampedFolder.c_str());
 			return "";
 		}
 
-		std::cout << "[+] Created dump folder: " << timestampedFolder << '\n';
+		Log::Success("Created dump folder: %s", timestampedFolder.c_str());
 		return timestampedFolder;
 	}
 }

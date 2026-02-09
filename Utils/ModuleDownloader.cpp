@@ -1,9 +1,9 @@
 #include "ModuleDownloader.h"
-#include <iostream>
+#include "Log.h"
 #include <cstdio>
+#include <iomanip>
 #include <Windows.h>
 #include <wininet.h>
-#include <iomanip>
 
 #pragma comment(lib, "wininet.lib")
 
@@ -43,19 +43,18 @@ bool ModuleDownloader::PerformDownload(const std::string& url, const std::string
 	HINTERNET hInternet = InternetOpenA("EAC Module Downloader", INTERNET_OPEN_TYPE_DIRECT, nullptr, nullptr, 0);
 	if (!hInternet)
 	{
-		std::cerr << "[!] Failed to initialize WinINet" << '\n';
+		Log::Error("Failed to initialize WinINet");
 		return false;
 	}
 
 	HINTERNET hUrl = InternetOpenUrlA(hInternet, url.c_str(), nullptr, 0, INTERNET_FLAG_RELOAD, 0);
 	if (!hUrl)
 	{
-		std::cerr << "[!] Failed to open URL: " << url << '\n';
+		Log::Error("Failed to open URL: %s", url.c_str());
 		InternetCloseHandle(hInternet);
 		return false;
 	}
 
-	// Get content length
 	DWORD bufferSize    = sizeof(DWORD);
 	DWORD contentLength = 0;
 	HttpQueryInfoA(hUrl, HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER,
@@ -64,20 +63,19 @@ bool ModuleDownloader::PerformDownload(const std::string& url, const std::string
 	FILE* file = nullptr;
 	if (fopen_s(&file, outputPath.c_str(), "wb") != 0 || !file)
 	{
-		std::cerr << "[!] Failed to create output file: " << outputPath << '\n';
+		Log::Error("Failed to create output file: %s", outputPath.c_str());
 		InternetCloseHandle(hUrl);
 		InternetCloseHandle(hInternet);
 		return false;
 	}
 
-	std::cout << "[+] Downloading module..." << '\n';
-	std::cout << "[+] URL: " << url << '\n';
-	std::cout << "[+] Output: " << outputPath << '\n';
+	Log::Info("Downloading module...");
+	Log::Info("URL: %s", url.c_str());
+	Log::Info("Output: %s", outputPath.c_str());
 
 	if (contentLength > 0)
 	{
-		std::cout << "[+] Size: " << std::fixed << std::setprecision(2)
-			<< (contentLength / 1024.0 / 1024.0) << " MB" << '\n';
+		Log::Info("Size: %.2f MB", contentLength / 1024.0 / 1024.0);
 	}
 
 	constexpr DWORD bufferLen = 8192;
@@ -97,14 +95,12 @@ bool ModuleDownloader::PerformDownload(const std::string& url, const std::string
 		}
 		else
 		{
-			// Simple progress without total size
-			std::cout << "\r[+] Downloaded: " << std::fixed << std::setprecision(2)
-				<< (totalDownloaded / 1024.0 / 1024.0) << " MB";
-			std::cout.flush();
+			printf("\r[+] Downloaded: %.2f MB", totalDownloaded / 1024.0 / 1024.0);
+			fflush(stdout);
 		}
 	}
 
-	std::cout << '\n';
+	printf("\n");
 
 	fclose(file);
 	InternetCloseHandle(hUrl);
@@ -112,13 +108,12 @@ bool ModuleDownloader::PerformDownload(const std::string& url, const std::string
 
 	if (totalDownloaded == 0)
 	{
-		std::cerr << "[!] No data downloaded" << '\n';
+		Log::Error("No data downloaded");
 		return false;
 	}
 
-	std::cout << "[+] Download completed successfully!" << '\n';
-	std::cout << "[+] Total downloaded: " << std::fixed << std::setprecision(2)
-		<< (totalDownloaded / 1024.0 / 1024.0) << " MB" << '\n';
+	Log::Success("Download completed successfully!");
+	Log::Info("Total downloaded: %.2f MB", totalDownloaded / 1024.0 / 1024.0);
 
 	return true;
 }
