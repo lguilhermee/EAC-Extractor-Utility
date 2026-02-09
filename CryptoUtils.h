@@ -4,12 +4,11 @@
 
 namespace CryptoUtils
 {
-	std::vector<uint8_t> DecryptBuffer(const std::vector<uint8_t>& encryptedVector);
-	std::vector<uint8_t> EncryptBuffer(const std::vector<uint8_t>& decryptedVector);
-	bool                 DecompressBuffer(
-		BYTE*   compressedData,
-		size_t  compressedSize,
-		BYTE**  outBuffer,
-		size_t* outSize
-	);
+	// Chain cipher only -- used for the EAC launcher payload.
+	std::vector<uint8_t> DecryptPayload(const std::vector<uint8_t>& encryptedVector);
+	std::vector<uint8_t> EncryptPayload(const std::vector<uint8_t>& decryptedVector);
+
+	// Chain cipher + raw deflate -- used for driver/usermode modules.
+	std::vector<uint8_t> UnpackModule(const std::vector<uint8_t>& encryptedVector);
+	std::vector<uint8_t> PackModule(const std::vector<uint8_t>& plainVector);
 }

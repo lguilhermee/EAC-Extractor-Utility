@@ -105,7 +105,7 @@ bool EACExtractor::DecryptAndSaveLauncher()
 		return false;
 	}
 
-	auto decryptedBuffer = CryptoUtils::DecryptBuffer(encryptedFile);
+	auto decryptedBuffer = CryptoUtils::DecryptPayload(encryptedFile);
 
 	std::string launcherPath = dumpFolder + "\\EAC_Launcher_decrypted.dll";
 	if (!FileUtils::SaveBinaryFile(launcherPath, decryptedBuffer))
@@ -197,12 +197,12 @@ ExtractedPayloads EACExtractor::ExtractPayloads()
 		{
 			std::cout << "[+] Found user mode module: " << userModeModuleSize << " bytes" << '\n';
 
-			payloads.UserModeModule = std::vector(
+			std::vector<uint8_t> encryptedUserMode(
 				(uint8_t*)userModuleEncrypted,
 				(uint8_t*)userModuleEncrypted + userModeModuleSize);
 
-			payloads.UserModeModule = CryptoUtils::DecryptBuffer(payloads.UserModeModule);
-			payloads.HasUserMode    = true;
+			payloads.UserModeModule = CryptoUtils::UnpackModule(encryptedUserMode);
+			payloads.HasUserMode    = !payloads.UserModeModule.empty();
 		}
 	}
 
@@ -243,29 +243,12 @@ ExtractedPayloads EACExtractor::ExtractPayloads()
 			{
 				std::cout << "[+] Found driver module: " << driverSize << " bytes" << '\n';
 
-				payloads.DriverModule = std::vector(
+				std::vector<uint8_t> encryptedDriver(
 					(uint8_t*)driverDataPtr,
 					(uint8_t*)driverDataPtr + driverSize);
 
-				// Decrypt Buffer
-				payloads.DriverModule = CryptoUtils::DecryptBuffer(payloads.DriverModule);
-
-				// Decompress Buffer
-				BYTE*  decompressedData = nullptr;
-				size_t decompressedSize = 0;
-
-				if (CryptoUtils::DecompressBuffer(
-					payloads.DriverModule.data(),
-					payloads.DriverModule.size(),
-					&decompressedData,
-					&decompressedSize))
-				{
-					payloads.DriverModule = std::vector(
-						decompressedData,
-						decompressedData + decompressedSize);
-
-					payloads.HasDriver = true;
-				}
+				payloads.DriverModule = CryptoUtils::UnpackModule(encryptedDriver);
+				payloads.HasDriver    = !payloads.DriverModule.empty();
 			}
 		}
 	}
