@@ -79,10 +79,10 @@ namespace PatternScanner
 		if (!results.empty())
 		{
 			std::cout << "[+] Pattern found: " << signature << " at 0x"
-				<< std::hex << results[0] << std::dec << std::endl;
+				<< std::hex << results[0] << std::dec << '\n';
 			return results[0];
 		}
-		std::cerr << "[!] Pattern not found: " << signature << std::endl;
+		std::cerr << "[!] Pattern not found: " << signature << '\n';
 		return 0;
 	}
 }

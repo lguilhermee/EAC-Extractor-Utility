@@ -165,11 +165,13 @@ ExtractedPayloads EACExtractor::ExtractPayloads()
 	std::cout << "\n[*] Extracting embedded payloads..." << '\n';
 
 	auto userModuleEncrypted = PatternScanner::FindFirstMatch(
-		(uintptr_t)LauncherModule, "A7 ED 96 0C 0F");
+		(uintptr_t)LauncherModule, "48 8D 05 ? ? ? ? 89 54 24");
 
 	if (userModuleEncrypted)
 	{
 #ifdef _WIN64
+
+		userModuleEncrypted = PatternScanner::ResolveRelative(userModuleEncrypted, 3, 7);
 
 		uint32_t userModeModuleSize = 0;
 
@@ -195,7 +197,7 @@ ExtractedPayloads EACExtractor::ExtractPayloads()
 		{
 			std::cout << "[+] Found user mode module: " << userModeModuleSize << " bytes" << '\n';
 
-			payloads.UserModeModule = std::vector<uint8_t>(
+			payloads.UserModeModule = std::vector(
 				(uint8_t*)userModuleEncrypted,
 				(uint8_t*)userModuleEncrypted + userModeModuleSize);
 
@@ -208,10 +210,15 @@ ExtractedPayloads EACExtractor::ExtractPayloads()
 	auto driverPattern = PatternScanner::FindFirstMatch(
 		(uintptr_t)LauncherModule, "48 8D 15 ? ? ? ? 48 8B CE E8 ? ? ? ? 49 83 FE");
 
+	if (!driverPattern)
+		driverPattern = PatternScanner::FindFirstMatch(
+			(uintptr_t)LauncherModule, "48 8D 15 ? ? ? ? 48 8B CB E8 ? ? ? ? 41 BE");
+
 
 	if (driverPattern)
 	{
 		auto driverDataPtr     = PatternScanner::ResolveRelative(driverPattern, 3, 7);
+		
 		auto driverSizePattern = PatternScanner::FindFirstMatch(
 			(uintptr_t)LauncherModule, "44 8B 35 ? ? ? ? 41 8B CE");
 
@@ -219,6 +226,11 @@ ExtractedPayloads EACExtractor::ExtractPayloads()
 		{
 			driverSizePattern = PatternScanner::FindFirstMatch(
 				(uintptr_t)LauncherModule, "44 8B 35 ? ? ? ? 33 D2");
+			if (!driverSizePattern)
+			{
+				driverSizePattern = PatternScanner::FindFirstMatch(
+					(uintptr_t)LauncherModule, "44 8B 3D ? ? ? ? 49 3B 40");
+			}
 		}
 
 

@@ -14,7 +14,7 @@ namespace FileUtils
 		std::ifstream file(filePath, std::ios::binary);
 		if (!file)
 		{
-			std::cerr << "Failed to open the file: " << filePath << std::endl;
+			std::cerr << "Failed to open the file: " << filePath << '\n';
 			return {};
 		}
 
@@ -26,7 +26,7 @@ namespace FileUtils
 
 		if (!file.read(reinterpret_cast<char*>(buffer.data()), fileSize))
 		{
-			std::cerr << "Failed to read the file: " << filePath << std::endl;
+			std::cerr << "Failed to read the file: " << filePath << '\n';
 			return {};
 		}
 
@@ -38,18 +38,18 @@ namespace FileUtils
 		std::ofstream file(filePath, std::ios::binary);
 		if (!file)
 		{
-			std::cerr << "Failed to create the file: " << filePath << std::endl;
+			std::cerr << "Failed to create the file: " << filePath << '\n';
 			return false;
 		}
 
 		file.write(reinterpret_cast<const char*>(data.data()), data.size());
 		if (!file)
 		{
-			std::cerr << "Failed to write the data to the file: " << filePath << std::endl;
+			std::cerr << "Failed to write the data to the file: " << filePath << '\n';
 			return false;
 		}
 
-		std::cout << "[+] Saved file: " << filePath << " (" << data.size() << " bytes)" << std::endl;
+		std::cout << "[+] Saved file: " << filePath << " (" << data.size() << " bytes)" << '\n';
 		return true;
 	}
 
@@ -108,7 +108,7 @@ namespace FileUtils
 		}
 		catch (const std::exception& e)
 		{
-			std::cerr << "Failed to create directory: " << path << " - " << e.what() << std::endl;
+			std::cerr << "Failed to create directory: " << path << " - " << e.what() << '\n';
 			return false;
 		}
 	}
@@ -124,7 +124,7 @@ namespace FileUtils
 
 		if (!EnsureDirectoryExists(baseDir))
 		{
-			std::cerr << "Failed to create base directory: " << baseDir << std::endl;
+			std::cerr << "Failed to create base directory: " << baseDir << '\n';
 			return "";
 		}
 
@@ -132,11 +132,11 @@ namespace FileUtils
 
 		if (!EnsureDirectoryExists(timestampedFolder))
 		{
-			std::cerr << "Failed to create dump folder: " << timestampedFolder << std::endl;
+			std::cerr << "Failed to create dump folder: " << timestampedFolder << '\n';
 			return "";
 		}
 
-		std::cout << "[+] Created dump folder: " << timestampedFolder << std::endl;
+		std::cout << "[+] Created dump folder: " << timestampedFolder << '\n';
 		return timestampedFolder;
 	}
 }
