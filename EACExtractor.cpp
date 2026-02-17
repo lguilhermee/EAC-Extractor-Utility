@@ -206,37 +206,81 @@ ExtractedPayloads EACExtractor::ExtractPayloads()
 	}
 
 #ifdef _WIN64
-	auto driverPattern = FindFirstMatchMulti((uintptr_t)LauncherModule, {
-		"48 8D 15 ? ? ? ? 48 8B CE E8 ? ? ? ? 49 83 FE",
-		"48 8D 15 ? ? ? ? 48 8B CB E8 ? ? ? ? 41 BE"
-	});
 
-	if (driverPattern)
+	auto FindDriverModule = [&]( ) -> uint64_t
+		{
+			auto base = reinterpret_cast<uint64_t>( LauncherModule );
+			auto nt = reinterpret_cast<PIMAGE_NT_HEADERS>( base + ( reinterpret_cast<PIMAGE_DOS_HEADER>( base ))->e_lfanew );
+			auto secs = IMAGE_FIRST_SECTION( nt );
+			for ( int i = 0; i < nt->FileHeader.NumberOfSections; i++ )
+			{
+				auto sec = &secs[i];
+				if ( !_stricmp( (char*)sec->Name, ".data" ) )
+					return base + sec->VirtualAddress;
+			}
+			return 0;
+		};
+
+	auto FindDriverSize = [&]( uintptr_t driverDataPtr ) -> uint32_t
+		{
+			auto base = reinterpret_cast<uint8_t*>( LauncherModule );
+			auto nt = reinterpret_cast<PIMAGE_NT_HEADERS>( base + reinterpret_cast<PIMAGE_DOS_HEADER>( base )->e_lfanew );
+
+			
+
+			uint8_t* codeStart = base + nt->OptionalHeader.BaseOfCode;
+			uint8_t* codeEnd = codeStart + nt->OptionalHeader.SizeOfCode;
+
+			for ( uint8_t* i = codeStart; i < codeEnd; ++i )
+			{
+				if ( i[0] == 0x48 && i[1] == 0x8D && ( i[2] == 0x0D || i[2] == 0x15 ) )
+				{
+					if ( PatternScanner::ResolveRelative(reinterpret_cast<uint64_t>(i), 3, 7 ) != driverDataPtr )
+						continue;
+
+					for ( uint8_t* prev = i; prev >= codeStart; --prev )
+					{
+						if ( prev[0] == 0x8B && prev[1] == 0x15 )
+						{
+							auto sizePtr = PatternScanner::ResolveRelative( reinterpret_cast<uint64_t>( prev), 2, 6 );
+							return *reinterpret_cast<uint32_t*>( sizePtr );
+						}
+					}
+				}
+			}
+			return 0;
+		};
+
+	if (auto driverDataPtr = FindDriverModule())
 	{
-		auto driverDataPtr = PatternScanner::ResolveRelative(driverPattern, 3, 7);
-
 		auto driverSizePattern = FindFirstMatchMulti((uintptr_t)LauncherModule, {
 			"44 8B 35 ? ? ? ? 41 8B CE",
 			"44 8B 35 ? ? ? ? 33 D2",
 			"44 8B 3D ? ? ? ? 49 3B 40"
 		});
 
-		if (driverSizePattern)
+		uint32_t driverSize {};
+
+		if ( !driverSizePattern )
 		{
-			auto driverSize = *(uint32_t*)PatternScanner::ResolveRelative(
-				driverSizePattern, 3, 7);
+			driverSize = FindDriverSize( driverDataPtr );
+		}
+		else
+		{
+			driverSize = *(uint32_t*)PatternScanner::ResolveRelative(
+				driverSizePattern, 3, 7 );
+		}
 
-			if (driverSize > 0 && driverSize < 100 * 1024 * 1024)
-			{
-				Log::Success("Found driver module: %u bytes", driverSize);
+		if ( driverSize > 0 && driverSize < 100 * 1024 * 1024 )
+		{
+			Log::Success( "Found driver module: %u bytes", driverSize );
 
-				std::vector<uint8_t> encryptedDriver(
-					(uint8_t*)driverDataPtr,
-					(uint8_t*)driverDataPtr + driverSize);
+			std::vector<uint8_t> encryptedDriver(
+				(uint8_t*)driverDataPtr,
+				(uint8_t*)driverDataPtr + driverSize );
 
-				payloads.DriverModule = CryptoUtils::UnpackModule(encryptedDriver);
-				payloads.HasDriver    = !payloads.DriverModule.empty();
-			}
+			payloads.DriverModule = CryptoUtils::UnpackModule( encryptedDriver );
+			payloads.HasDriver = !payloads.DriverModule.empty( );
 		}
 	}
 #else
