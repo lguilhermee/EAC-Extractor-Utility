@@ -18,8 +18,13 @@
     },
     {
       "name": "Fortnite",
-      "productId": "b2504259773b40e3a818f820e31979ca",
-      "deploymentId": "47b56979fab54704970a6b1331d1e291"
+      "productId": "prod-fn",
+      "deploymentId": "62a9473a2dca46b29ccf17577fcf42d7"
+    },
+	{
+      "name": "Rust",
+      "productId": "429c2212ad284866aee071454c2125b5",
+      "deploymentId": "76796531e86443548754600511f42e9e"
     }
   ]
 }

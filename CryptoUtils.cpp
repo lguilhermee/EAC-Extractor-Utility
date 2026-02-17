@@ -1,6 +1,7 @@
 #include "CryptoUtils.h"
 #include "Log.h"
 #include "miniz.h"
+#include "kraken.h"
 
 namespace CryptoUtils
 {
@@ -29,31 +30,62 @@ namespace CryptoUtils
 
 	std::vector<uint8_t> UnpackModule(const std::vector<uint8_t>& encryptedVector)
 	{
-		std::vector<uint8_t> decrypted = DecryptPayload(encryptedVector);
 
-		size_t decompressedSize = 0;
-		void*  pDecompressed    = tinfl_decompress_mem_to_heap(
-			decrypted.data(),
-			decrypted.size(),
-			&decompressedSize,
-			0  // Raw deflate -- no zlib header
-		);
+		bool isEncrypted = *reinterpret_cast<const uint16_t*>( encryptedVector.data( ) + 12 ) != 0x5A4D;
+		std::vector<uint8_t> decrypted;
 
-		if (!pDecompressed)
+		if ( isEncrypted )
 		{
-			Log::Error("Failed to inflate module");
-			return {};
+			decrypted = DecryptPayload( encryptedVector );
+		}
+		else
+		{
+			decrypted = encryptedVector;
 		}
 
-		Log::Success("Unpacked module: %zu -> %zu bytes", decrypted.size(), decompressedSize);
+		bool usesKraken = *reinterpret_cast<const uint16_t*>( decrypted.data( ) + 12 ) == 0x5A4D;
 
-		std::vector<uint8_t> result(
-			static_cast<uint8_t*>(pDecompressed),
-			static_cast<uint8_t*>(pDecompressed) + decompressedSize
-		);
+		if ( usesKraken )
+		{
+			uint32_t decompressedSize = *reinterpret_cast<const uint32_t*>( decrypted.data( ) );
+			std::vector<uint8_t>decompressedData;
+			decompressedData.resize( decompressedSize );
+			auto ret = Kraken_Decompress( decrypted.data( ) + 4, decrypted.size( ) - 4, decompressedData.data( ), decompressedData.size( ) );
+			if ( ret == -1 )
+			{
+				Log::Error( "Failed to decompress using kraken" );
+				return {};
+			}
+			return decompressedData;
+		}
+		else
+		{
+			size_t decompressedSize = 0;
+			void* pDecompressed = tinfl_decompress_mem_to_heap(
+				decrypted.data( ),
+				decrypted.size( ),
+				&decompressedSize,
+				0  // Raw deflate -- no zlib header
+			);
 
-		mz_free(pDecompressed);
-		return result;
+			if ( !pDecompressed )
+			{
+				Log::Error( "Failed to inflate module" );
+				return {};
+			}
+
+			Log::Success( "Unpacked module: %zu -> %zu bytes", decrypted.size( ), decompressedSize );
+
+			std::vector<uint8_t> result(
+				static_cast<uint8_t*>( pDecompressed ),
+				static_cast<uint8_t*>( pDecompressed ) + decompressedSize
+			);
+
+			mz_free( pDecompressed );
+			return result;
+		}
+
+		
 	}
 
 	std::vector<uint8_t> PackModule(const std::vector<uint8_t>& plainVector)
